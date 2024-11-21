@@ -4,12 +4,12 @@ beautifulsoup4==4.12.3
 certifi==2024.8.30
 charset-normalizer==3.3.2
 dnspython>=2.0.0
-eventlet==0.33.0  # Ensure to specify the version as required, or leave it as the latest
-Flask==3.0.3
+eventlet==0.33.0  # Ensure eventlet is installed for Gunicorn eventlet worker
+Flask==2.3.0  # Flask web framework, adjust if using a different one
 Flask-Cors==5.0.0
 Flask-SocketIO==5.4.1
 Flask-SQLAlchemy==3.1.1
-gunicorn==20.1.0
+gunicorn==20.1.0  # Gunicorn for running the app with eventlet
 Jinja2==3.1.4
 numpy==1.26.4 --only-binary=:all:
 pandas==2.2.3 --only-binary=:all:
@@ -19,5 +19,3 @@ scikit-learn-intelex==2024.7.0
 scipy==1.14.1 --only-binary=:all:
 tensorflow-cpu==2.17.0
 Werkzeug==3.0.4
-
-
