@@ -46,32 +46,57 @@ def get_weather_data():
 @app.route('/receive_data', methods=['POST'])
 def receive_data():
     try:
-        # Log the incoming request body for debugging
-        print(f"Received data: {request.data}")
-        
-        # Receive and parse the incoming JSON data
-        sensor_data = request.get_json()
-        print(f"Parsed sensor data: {sensor_data}")
+        # Receive JSON data from the ESP32
+        sensor_data = request.json
+        print(f"Received sensor data: {sensor_data}")
 
-        # Extract the sensor values
+        # Extract sensor values
         temperature = sensor_data.get("temperature")
         humidity = sensor_data.get("humidity")
         soil_moisture = sensor_data.get("soil_moisture")
 
-        # Check for missing data
+        # If any data is missing, return an error response
         if None in [temperature, humidity, soil_moisture]:
-            print("Missing data fields.")
             return jsonify({"error": "Invalid data received"}), 400
 
-        # Your existing prediction and other code
+        # Fetch weather data from WeatherAPI
+        weather_data = get_weather_data()
+        if not weather_data:
+            return jsonify({"error": "Failed to fetch weather data"}), 500
 
-        return jsonify({"status": "success", "prediction": "dummy prediction"}), 200
+        # Prepare data for prediction (combine sensor and weather data)
+        sensor_input = pd.DataFrame({
+            "precip": [weather_data["precip_mm"]],
+            "temp_avg": [weather_data["temp_avg"]],
+            "temp_max": [weather_data["temp_max"]],
+            "temp_min": [weather_data["temp_min"]],
+            "humidity": [humidity],
+            "soil_moisture": [soil_moisture],
+            "temperature": [temperature]
+        })
+
+        # Make prediction
+        prediction = model.predict(sensor_input)
+        water_plants = int(prediction[0])
+        confidence = model.predict_proba(sensor_input).max()  # Get the highest probability
+
+        # Construct prediction response
+        response = {
+            "water_plants": water_plants,
+            "temperature": temperature,
+            "humidity": humidity,
+            "soil_moisture": soil_moisture,
+            "confidence": confidence,
+            "ml_decision": "Water plants" if water_plants == 1 else "No watering needed",
+            "weather_data": weather_data
+        }
+
+        print(f"Prediction: {response}")
+        return jsonify({"status": "success", "prediction": response}), 200
 
     except Exception as e:
         print(f"Error processing data: {e}")
         return jsonify({"error": "Error processing data"}), 500
-
-
 # Control valve route (to send HTTP request to ESP32 to control the valve)
 @app.route('/control_valve', methods=['POST'])
 def control_valve():
