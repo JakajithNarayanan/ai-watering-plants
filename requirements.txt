@@ -7,11 +7,15 @@ Flask==3.0.3
 Flask-Cors==5.0.0
 Flask-SocketIO==5.4.1
 Flask-SQLAlchemy==3.1.1
+gunicorn==20.1.0
 Jinja2==3.1.4
 numpy==1.26.4 --only-binary=:all:
 pandas==2.2.3 --only-binary=:all:
+requests==2.32.3
 scikit-learn==1.5.2
 scikit-learn-intelex==2024.7.0
 scipy==1.14.1 --only-binary=:all:
 tensorflow-cpu==2.17.0
 Werkzeug==3.0.4
+
+
