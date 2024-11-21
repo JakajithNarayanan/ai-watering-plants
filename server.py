@@ -46,9 +46,12 @@ def get_weather_data():
 @app.route('/receive_data', methods=['POST'])
 def receive_data():
     try:
-        # Receive JSON data from the ESP32
-        sensor_data = request.json
-        print(f"Received sensor data: {sensor_data}")
+        # Log the incoming request body for debugging
+        print(f"Received data: {request.data}")
+
+        # Receive JSON data from the ESP32 (or curl request)
+        sensor_data = request.get_json()  # Changed to .get_json() to properly parse JSON
+        print(f"Parsed sensor data: {sensor_data}")
 
         # Extract sensor values
         temperature = sensor_data.get("temperature")
@@ -59,45 +62,14 @@ def receive_data():
         if None in [temperature, humidity, soil_moisture]:
             return jsonify({"error": "Invalid data received"}), 400
 
-        # Fetch weather data from WeatherAPI
-        weather_data = get_weather_data()
-        if not weather_data:
-            return jsonify({"error": "Failed to fetch weather data"}), 500
+        # Your other code for fetching weather data and making predictions here...
+        # ...
 
-        # Prepare data for prediction (combine sensor and weather data)
-        sensor_input = pd.DataFrame({
-            "precip": [weather_data["precip_mm"]],
-            "temp_avg": [weather_data["temp_avg"]],
-            "temp_max": [weather_data["temp_max"]],
-            "temp_min": [weather_data["temp_min"]],
-            "humidity": [humidity],
-            "soil_moisture": [soil_moisture],
-            "temperature": [temperature]
-        })
-
-        # Make prediction
-        prediction = model.predict(sensor_input)
-        water_plants = int(prediction[0])
-        confidence = model.predict_proba(sensor_input).max()  # Get the highest probability
-
-        # Construct prediction response
-        response = {
-            "water_plants": water_plants,
-            "temperature": temperature,
-            "humidity": humidity,
-            "soil_moisture": soil_moisture,
-            "confidence": confidence,
-            "ml_decision": "Water plants" if water_plants == 1 else "No watering needed",
-            "weather_data": weather_data
-        }
-
-        print(f"Prediction: {response}")
-        return jsonify({"status": "success", "prediction": response}), 200
+        return jsonify({"status": "success", "prediction": "dummy prediction"}), 200
 
     except Exception as e:
         print(f"Error processing data: {e}")
         return jsonify({"error": "Error processing data"}), 500
-
 
 # Control valve route (to send HTTP request to ESP32 to control the valve)
 @app.route('/control_valve', methods=['POST'])
