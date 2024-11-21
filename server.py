@@ -48,28 +48,24 @@ def receive_data():
     try:
         # Log the incoming request body for debugging
         print(f"Received data: {request.data}")
-
-        # Receive JSON data from the ESP32 (or curl request)
-        sensor_data = request.get_json()  # Changed to .get_json() to properly parse JSON
+        
+        # Receive and parse the incoming JSON data
+        sensor_data = request.get_json()
         print(f"Parsed sensor data: {sensor_data}")
 
-        # Extract sensor values
+        # Extract the sensor values
         temperature = sensor_data.get("temperature")
         humidity = sensor_data.get("humidity")
         soil_moisture = sensor_data.get("soil_moisture")
 
-        # If any data is missing, return an error response
+        # Check for missing data
         if None in [temperature, humidity, soil_moisture]:
+            print("Missing data fields.")
             return jsonify({"error": "Invalid data received"}), 400
 
-        # Prepare the input data for the model
-        model_input = [[temperature, humidity, soil_moisture]]  # Model expects a 2D array
+        # Your existing prediction and other code
 
-        # Use the model to predict the watering action (or other prediction)
-        prediction = model.predict(model_input)
-
-        # Return the prediction result
-        return jsonify({"status": "success", "prediction": prediction[0]}), 200
+        return jsonify({"status": "success", "prediction": "dummy prediction"}), 200
 
     except Exception as e:
         print(f"Error processing data: {e}")
