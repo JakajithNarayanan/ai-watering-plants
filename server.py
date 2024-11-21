@@ -42,26 +42,28 @@ def get_weather_data():
         return None
 
 
-# HTTP POST endpoint to receive data from the ESP32
+# HTTP POST endpoint to receive data from the ESP32  
 @app.route('/receive_data', methods=['POST'])
 def receive_data():
     try:
-        # Receive JSON data from the ESP32
+        # Receive JSON data from the ESP32 or Postman
         sensor_data = request.json
-        print(f"Received sensor data: {sensor_data}")
+        print(f"Received sensor data: {sensor_data}")  # Log the incoming data
 
         # Extract sensor values
         temperature = sensor_data.get("temperature")
         humidity = sensor_data.get("humidity")
         soil_moisture = sensor_data.get("soil_moisture")
 
-        # If any data is missing, return an error response
+        # Log if any value is missing
         if None in [temperature, humidity, soil_moisture]:
+            print("Missing data:", sensor_data)
             return jsonify({"error": "Invalid data received"}), 400
 
         # Fetch weather data from WeatherAPI
         weather_data = get_weather_data()
         if not weather_data:
+            print("Error fetching weather data.")
             return jsonify({"error": "Failed to fetch weather data"}), 500
 
         # Prepare data for prediction (combine sensor and weather data)
@@ -95,8 +97,9 @@ def receive_data():
         return jsonify({"status": "success", "prediction": response}), 200
 
     except Exception as e:
-        print(f"Error processing data: {e}")
+        print(f"Error processing data: {e}")  # Log the exception
         return jsonify({"error": "Error processing data"}), 500
+ 
 # Control valve route (to send HTTP request to ESP32 to control the valve)
 @app.route('/control_valve', methods=['POST'])
 def control_valve():
