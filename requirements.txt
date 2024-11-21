@@ -3,7 +3,7 @@ attrs==24.2.0
 beautifulsoup4==4.12.3
 certifi==2024.8.30
 charset-normalizer==3.3.2
-eventlet==0.30.2
+eventlet==0.33.2
 dnspython==2.2.1
 Flask==2.3.0  # Flask web framework, adjust if using a different one
 Flask-Cors==5.0.0
