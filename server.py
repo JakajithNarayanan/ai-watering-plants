@@ -62,14 +62,19 @@ def receive_data():
         if None in [temperature, humidity, soil_moisture]:
             return jsonify({"error": "Invalid data received"}), 400
 
-        # Your other code for fetching weather data and making predictions here...
-        # ...
+        # Prepare the input data for the model
+        model_input = [[temperature, humidity, soil_moisture]]  # Model expects a 2D array
 
-        return jsonify({"status": "success", "prediction": "dummy prediction"}), 200
+        # Use the model to predict the watering action (or other prediction)
+        prediction = model.predict(model_input)
+
+        # Return the prediction result
+        return jsonify({"status": "success", "prediction": prediction[0]}), 200
 
     except Exception as e:
         print(f"Error processing data: {e}")
         return jsonify({"error": "Error processing data"}), 500
+
 
 # Control valve route (to send HTTP request to ESP32 to control the valve)
 @app.route('/control_valve', methods=['POST'])
@@ -100,6 +105,7 @@ def control_valve():
 @app.route('/')
 def index():
     return "Flask server is running!"
+
 
 if __name__ == '__main__':
     # Set port dynamically for deployment
