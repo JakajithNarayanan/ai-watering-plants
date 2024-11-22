@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify
 import joblib
 import pandas as pd
-import json
 import requests
 import os
 
@@ -10,46 +9,46 @@ app = Flask(__name__)
 # Load the machine learning model
 model = joblib.load("watering_model.pkl")
 
-API_KEY = 'b0b6fbb82e714fefa7c133211241711'
+# OpenWeatherMap API configurations
+API_KEY = '702e1d129531c4da1cef6f9e3b26260d'
 CITY = 'Coimbatore'
-BASE_URL = 'http://api.weatherapi.com/v1/forecast.json'
+BASE_URL = 'https://api.openweathermap.org/data/2.5/weather'
 
 # ESP32 control URL
 ESP32_URL = 'http://192.168.1.6/control_valve'
 
 
-# Function to fetch weather data
-def get_weather_data():
-    params = {'key': API_KEY, 'q': CITY, 'days': 1}
+# Function to fetch weather data from OpenWeatherMap
+def fetch_weather_data():
+    params = {'q': CITY, 'appid': API_KEY, 'units': 'metric'}
     try:
         response = requests.get(BASE_URL, params=params)
         data = response.json()
 
-        # Extract required weather data
-        precip_mm = data['forecast']['forecastday'][0]['day']['totalprecip_mm']
-        temp_avg = data['forecast']['forecastday'][0]['day']['avgtemp_c']
-        temp_max = data['forecast']['forecastday'][0]['day']['maxtemp_c']
-        temp_min = data['forecast']['forecastday'][0]['day']['mintemp_c']
+        # Ensure required keys exist in the response
+        if 'main' not in data or 'rain' not in data:
+            print("Weather API response is missing some required data.")
+            return None
 
+        # Extract temperature and precipitation
+        current_temp = data['main']['temp']  # Temperature in Celsius
+        precip_mm = data.get('rain', {}).get('1h', 0.0)  # Precipitation in mm (last 1 hour)
+
+        # Use the same temperature for min, max, and avg
         return {
             "precip_mm": precip_mm,
-            "temp_avg": temp_avg,
-            "temp_max": temp_max,
-            "temp_min": temp_min
+            "temp_avg": current_temp,
+            "temp_max": current_temp,
+            "temp_min": current_temp
         }
     except requests.exceptions.RequestException as e:
         print(f"Error fetching weather data: {e}")
         return None
 
 
-# HTTP POST endpoint to receive data from the ESP32  
-@app.route('/receive_data', methods=['POST'])
-def receive_data():
+# Function to process data from Arduino
+def process_arduino_data(sensor_data):
     try:
-        # Receive JSON data from the ESP32 or Postman
-        sensor_data = request.json
-        print(f"Received sensor data: {sensor_data}")  # Log the incoming data
-
         # Extract sensor values
         temperature = sensor_data.get("temperature")
         humidity = sensor_data.get("humidity")
@@ -58,23 +57,46 @@ def receive_data():
         # Log if any value is missing
         if None in [temperature, humidity, soil_moisture]:
             print("Missing data:", sensor_data)
-            return jsonify({"error": "Invalid data received"}), 400
+            return {"error": "Invalid data received"}
 
-        # Fetch weather data from WeatherAPI
-        weather_data = get_weather_data()
+        return {
+            "temperature": temperature,
+            "humidity": humidity,
+            "soil_moisture": soil_moisture
+        }
+    except Exception as e:
+        print(f"Error processing Arduino data: {e}")
+        return {"error": "Error processing Arduino data"}
+
+
+# HTTP POST endpoint to receive data from Arduino
+@app.route('/receive_data', methods=['POST'])
+def receive_data():
+    try:
+        # Receive JSON data from Arduino
+        sensor_data = request.json
+        print(f"Received sensor data: {sensor_data}")  # Log the incoming data
+
+        # Process Arduino data
+        arduino_data = process_arduino_data(sensor_data)
+        if "error" in arduino_data:
+            return jsonify({"error": arduino_data["error"]}), 400
+
+        # Fetch weather data
+        weather_data = fetch_weather_data()
         if not weather_data:
             print("Error fetching weather data.")
             return jsonify({"error": "Failed to fetch weather data"}), 500
 
-        # Prepare data for prediction (combine sensor and weather data)
+        # Prepare data for prediction
         sensor_input = pd.DataFrame({
             "precip": [weather_data["precip_mm"]],
             "temp_avg": [weather_data["temp_avg"]],
             "temp_max": [weather_data["temp_max"]],
             "temp_min": [weather_data["temp_min"]],
-            "humidity": [humidity],
-            "soil_moisture": [soil_moisture],
-            "temperature": [temperature]
+            "humidity": [arduino_data["humidity"]],
+            "soil_moisture": [arduino_data["soil_moisture"]],
+            "temperature": [arduino_data["temperature"]]
         })
 
         # Make prediction
@@ -85,9 +107,9 @@ def receive_data():
         # Construct prediction response
         response = {
             "water_plants": water_plants,
-            "temperature": temperature,
-            "humidity": humidity,
-            "soil_moisture": soil_moisture,
+            "temperature": arduino_data["temperature"],
+            "humidity": arduino_data["humidity"],
+            "soil_moisture": arduino_data["soil_moisture"],
             "confidence": confidence,
             "ml_decision": "Water plants" if water_plants == 1 else "No watering needed",
             "weather_data": weather_data
@@ -99,7 +121,8 @@ def receive_data():
     except Exception as e:
         print(f"Error processing data: {e}")  # Log the exception
         return jsonify({"error": "Error processing data"}), 500
- 
+
+
 # Control valve route (to send HTTP request to ESP32 to control the valve)
 @app.route('/control_valve', methods=['POST'])
 def control_valve():
